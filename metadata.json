@@ -1,0 +1,8 @@
+{
+  "name": "Li Moda Fitness 5.0",
+  "description": "Site de Vendas git",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
