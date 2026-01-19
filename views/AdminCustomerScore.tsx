@@ -37,7 +37,12 @@ const AdminCustomerScore: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
       setDiscountType('percent');
       setDiscountValue(suggest.toString());
       setCouponMsg(`Parabéns! Pelo seu nível ${getLevel(selectedCustomer.totalSpent).name}, você liberou ${suggest}% OFF em itens selecionados!`);
-      generateCode();
+      
+      // Gera código com o valor sugerido já incluso
+      const namePart = selectedCustomer.name.split(' ')[0].substring(0, 4).toUpperCase();
+      const randPart = Math.floor(1000 + Math.random() * 9000);
+      const suffix = '%';
+      setCouponCode(`${namePart}${randPart}${suggest}${suffix}`);
     }
   };
 
@@ -45,7 +50,9 @@ const AdminCustomerScore: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
     if (!selectedCustomer) return;
     const namePart = selectedCustomer.name.split(' ')[0].substring(0, 4).toUpperCase();
     const randPart = Math.floor(1000 + Math.random() * 9000);
-    setCouponCode(`${namePart}${randPart}`);
+    const valuePart = discountValue || '0';
+    const suffix = discountType === 'percent' ? '%' : 'RS';
+    setCouponCode(`${namePart}${randPart}${valuePart}${suffix}`);
   };
 
   const sendCoupon = async () => {
@@ -135,7 +142,7 @@ const AdminCustomerScore: React.FC<{ isAdmin: boolean }> = ({ isAdmin }) => {
                     <button onClick={() => setDiscountType('percent')} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${discountType === 'percent' ? 'bg-[#CCFF00] text-black' : 'text-white/30'}`}>PORCENTAGEM (%)</button>
                     <button onClick={() => setDiscountType('fixed')} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${discountType === 'fixed' ? 'bg-[#CCFF00] text-black' : 'text-white/30'}`}>VALOR FIXO (R$)</button>
                   </div>
-                  <input type="number" placeholder="Valor" className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-sm font-black text-white" value={discountValue} onChange={e => setDiscountValue(e.target.value)} />
+                  <input type="number" placeholder="Valor" className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-sm font-black text-white" value={discountValue} onChange={e => { setDiscountValue(e.target.value); }} />
                   <div className="relative">
                     <input type="text" placeholder="CODE" className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-sm font-mono font-black text-[#CCFF00]" value={couponCode} onChange={e => setCouponCode(e.target.value)} />
                     <button onClick={generateCode} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#CCFF00]"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeWidth="2.5" /></svg></button>

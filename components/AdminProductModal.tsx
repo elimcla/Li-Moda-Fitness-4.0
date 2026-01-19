@@ -14,6 +14,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
   const [mediaInput, setMediaInput] = useState('');
   const [showMediaInput, setShowMediaInput] = useState(false);
   const [colorInput, setColorInput] = useState('');
+  const [colorQtyInput, setColorQtyInput] = useState<number>(0);
   const [customSizeInput, setCustomSizeInput] = useState('');
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -27,11 +28,20 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
     image: product?.image || '',
     images: product?.images || [],
     sizes: product?.sizes || [],
-    colors: (product as any)?.colors || [],
+    colors: (product as any)?.colors || [], 
     isUniqueSize: product?.isUniqueSize || false,
     isAvailable: product?.isAvailable ?? true,
     stockQuantity: product?.stockQuantity || 0
   });
+
+  // Efeito para sincronizar o stockQuantity com a soma das cores sempre que a lista de cores mudar
+  useEffect(() => {
+    const total = form.colors.reduce((acc: number, colorEntry: string) => {
+      const match = colorEntry.match(/\((\d+)\)/);
+      return acc + (match ? parseInt(match[1]) : 0);
+    }, 0);
+    setForm(prev => ({ ...prev, stockQuantity: total }));
+  }, [form.colors]);
 
   useEffect(() => {
     if (!product) {
@@ -73,14 +83,27 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
   };
 
   const addColor = () => {
-    if (colorInput.trim() && !form.colors.includes(colorInput.trim().toUpperCase())) {
-      setForm({ ...form, colors: [...form.colors, colorInput.trim().toUpperCase()] });
-      setColorInput('');
+    if (colorInput.trim()) {
+      const colorName = colorInput.trim().toUpperCase();
+      const qty = colorQtyInput || 0;
+      const newColorEntry = `${colorName} (${qty})`;
+      
+      if (!form.colors.includes(newColorEntry)) {
+        setForm({ 
+          ...form, 
+          colors: [...form.colors, newColorEntry]
+        });
+        setColorInput('');
+        setColorQtyInput(0);
+      }
     }
   };
 
-  const removeColor = (color: string) => {
-    setForm({ ...form, colors: form.colors.filter(c => c !== color) });
+  const removeColor = (colorEntry: string) => {
+    setForm({ 
+      ...form, 
+      colors: form.colors.filter(c => c !== colorEntry)
+    });
   };
 
   const addCustomSize = () => {
@@ -109,7 +132,6 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
     <div className="fixed inset-0 z-[120] flex items-stretch justify-center bg-black overflow-hidden">
       <div className="relative w-full h-full flex flex-col bg-[#050505]">
         
-        {/* HEADER BAR */}
         <div className="h-20 shrink-0 border-b border-white/5 flex items-center justify-between px-6 md:px-10 bg-black/80 backdrop-blur-2xl z-20">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-[#CCFF00] rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(204,255,0,0.2)]">
@@ -125,11 +147,9 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
           </button>
         </div>
 
-        {/* WORKSPACE */}
         <div className="flex-grow overflow-y-auto scroll-smooth">
           <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-16 p-6 lg:p-16">
             
-            {/* COLUNA 1: VISUALS */}
             <div className="lg:col-span-5 space-y-12">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -200,27 +220,24 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
               </div>
             </div>
 
-            {/* COLUNA 2: DADOS E VARIANTES */}
             <div className="lg:col-span-7 space-y-12 pb-32">
               
-              {/* Identidade */}
               <div className="space-y-6">
                 <div className="flex items-center gap-4"><span className="w-8 h-[1px] bg-[#CCFF00]"></span><span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#CCFF00]">Identidade do Produto</span></div>
                 <input 
-                  placeholder="NOME DO PRODUTO (EX: CONJUNTO IMPACTO)" 
+                  placeholder="NOME DO PRODUTO" 
                   className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-6 text-lg font-bold focus:border-[#CCFF00] outline-none" 
                   value={form.name} 
                   onChange={e => setForm({...form, name: e.target.value.toUpperCase()})} 
                 />
                 <textarea 
-                  placeholder="DESCRIÇÃO TÉCNICA E COPY DE VENDAS..." 
+                  placeholder="DESCRIÇÃO TÉCNICA..." 
                   className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] p-6 text-sm h-32 resize-none focus:border-[#CCFF00] outline-none leading-relaxed" 
                   value={form.description} 
                   onChange={e => setForm({...form, description: e.target.value})} 
                 />
               </div>
 
-              {/* Mercado e Categoria */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[9px] text-white/30 uppercase font-black ml-4 tracking-widest">Categoria Inteligente</label>
@@ -245,41 +262,53 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
                 </div>
               </div>
 
-              {/* CORES E VARIANTES */}
               <div className="space-y-8">
-                <div className="flex items-center gap-4"><span className="w-8 h-[1px] bg-[#CCFF00]"></span><span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#CCFF00]">Cores Disponíveis</span></div>
+                <div className="flex items-center gap-4"><span className="w-8 h-[1px] bg-[#CCFF00]"></span><span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#CCFF00]">Cores e Quantidades</span></div>
                 
-                <div className="flex gap-2">
-                  <input 
-                    placeholder="DIGITE UMA COR (EX: AZUL ROYAL)" 
-                    className="flex-grow bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs focus:border-[#CCFF00] outline-none font-bold uppercase" 
-                    value={colorInput} 
-                    onChange={e => setColorInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addColor()}
-                  />
-                  <button onClick={addColor} className="bg-[#CCFF00] text-black px-8 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-[#CCFF00]/10">ADICIONAR</button>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                  <div className="md:col-span-8">
+                    <input 
+                      placeholder="COR (EX: PRETO)" 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs focus:border-[#CCFF00] outline-none font-bold uppercase" 
+                      value={colorInput} 
+                      onChange={e => setColorInput(e.target.value)}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <input 
+                      type="number"
+                      placeholder="QTY" 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-xs focus:border-[#CCFF00] outline-none font-bold text-center" 
+                      value={colorQtyInput} 
+                      onChange={e => setColorQtyInput(parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <button onClick={addColor} className="w-full h-full bg-[#CCFF00] text-black rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-[#CCFF00]/10 py-4">ADD</button>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {form.colors.map(color => (
-                    <div key={color} className="bg-white/10 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-3 group animate-fade-in">
-                      <span className="text-[10px] font-black uppercase tracking-widest">{color}</span>
-                      <button onClick={() => removeColor(color)} className="text-white/20 hover:text-red-500 transition-colors">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                  {form.colors.map(colorEntry => (
+                    <div key={colorEntry} className="bg-white/10 border border-[#CCFF00]/30 px-4 py-2 rounded-xl flex items-center gap-3 group animate-fade-in">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase tracking-widest">{colorEntry.split(' (')[0]}</span>
+                        <span className="text-[8px] text-[#CCFF00] font-bold uppercase">Unidades: {colorEntry.match(/\((\d+)\)/)?.[1] || 0}</span>
+                      </div>
+                      <button onClick={() => removeColor(colorEntry)} className="text-white/20 hover:text-red-500 transition-colors ml-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   ))}
-                  {form.colors.length === 0 && <p className="text-[9px] text-white/20 uppercase font-bold ml-2">Nenhuma cor específica definida (Padrão: Todas)</p>}
                 </div>
               </div>
 
-              {/* GRADE DE TAMANHOS DINÂMICA */}
               <div className="space-y-8">
                 <div className="flex items-center gap-4"><span className="w-8 h-[1px] bg-[#CCFF00]"></span><span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#CCFF00]">Grade de Tamanhos</span></div>
                 
                 <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-6">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Sugestão p/ {form.category}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Configurar Grade</span>
                     <button onClick={() => setForm({...form, isUniqueSize: !form.isUniqueSize, sizes: !form.isUniqueSize ? ['ÚNICO'] : []})} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase transition-all ${form.isUniqueSize ? 'bg-[#CCFF00] text-black' : 'bg-white/10 text-white/40'}`}>Tamanho Único</button>
                   </div>
 
@@ -296,44 +325,29 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
                           </button>
                         ))}
                       </div>
-
-                      <div className="flex gap-2 mt-4 pt-4 border-t border-white/5">
-                        <input 
-                          placeholder="TAMANHO CUSTOM (EX: 2L, 42MM...)" 
-                          className="flex-grow bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-[10px] focus:border-[#CCFF00] outline-none font-bold uppercase" 
-                          value={customSizeInput} 
-                          onChange={e => setCustomSizeInput(e.target.value)}
-                        />
-                        <button onClick={addCustomSize} className="bg-white/10 text-white px-4 rounded-xl font-black text-[9px] uppercase hover:bg-[#CCFF00] hover:text-black transition-all">Add Custom</button>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1.5 pt-2">
-                        {form.sizes.map(s => (
-                          <span key={s} className="bg-[#CCFF00]/10 text-[#CCFF00] border border-[#CCFF00]/20 px-3 py-1 rounded text-[9px] font-black">{s}</span>
-                        ))}
-                      </div>
                     </div>
                   )}
-                  
-                  {form.isUniqueSize && <div className="py-10 text-center text-[#CCFF00] font-black uppercase text-[10px] tracking-widest border border-[#CCFF00]/10 rounded-3xl bg-[#CCFF00]/5">Grade Única Ativada</div>}
                 </div>
               </div>
 
-              {/* Estoque e Visibilidade */}
               <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-6">
                 <div className="flex justify-between items-center"><span className="text-[10px] font-black uppercase tracking-widest text-white/40">Logística de Estoque</span></div>
                 <div className="flex items-center gap-6">
-                  <input 
-                    type="number" 
-                    className="w-32 bg-black/60 border border-white/10 rounded-2xl p-6 text-3xl font-black text-center focus:border-[#CCFF00] outline-none" 
-                    value={form.stockQuantity} 
-                    onChange={e => setForm({...form, stockQuantity: Number(e.target.value)})} 
-                  />
+                  {/* Campo desabilitado para edição direta, agora é apenas leitura (soma automática) */}
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      readOnly
+                      className="w-32 bg-black/60 border border-white/10 rounded-2xl p-6 text-3xl font-black text-center outline-none cursor-default text-[#CCFF00]" 
+                      value={form.stockQuantity} 
+                    />
+                    <span className="absolute -bottom-5 left-0 w-full text-center text-[7px] text-white/20 font-black uppercase">Soma Total</span>
+                  </div>
                   <button 
                     onClick={() => setForm({...form, isAvailable: !form.isAvailable})} 
                     className={`flex-grow py-6 rounded-[1.5rem] font-black uppercase tracking-widest text-[10px] transition-all border ${form.isAvailable ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}
                   >
-                    {form.isAvailable ? '✔ Produto Visível' : '✖ Oculto na Loja'}
+                    {form.isAvailable ? '✔ Visível' : '✖ Oculto'}
                   </button>
                 </div>
               </div>
@@ -342,14 +356,13 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({ product, onClose 
           </div>
         </div>
 
-        {/* BOTÃO SALVAR PERSISTENTE */}
         <div className="h-28 shrink-0 bg-black border-t border-white/5 flex items-center justify-center px-6 z-30">
           <button 
             onClick={handleSave} 
             disabled={loading} 
-            className="w-full max-w-2xl bg-[#CCFF00] text-black py-5 rounded-[1.5rem] font-black uppercase tracking-[0.4em] text-[11px] shadow-2xl shadow-[#CCFF00]/30 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-30"
+            className="w-full max-2xl bg-[#CCFF00] text-black py-5 rounded-[1.5rem] font-black uppercase tracking-[0.4em] text-[11px] shadow-2xl shadow-[#CCFF00]/30 transition-all disabled:opacity-30"
           >
-            {loading ? 'SINCRONIZANDO...' : 'SALVAR ALTERAÇÕES AGORA'}
+            {loading ? 'SINCRONIZANDO...' : 'SALVAR DROP & ESTOQUE'}
           </button>
         </div>
 
