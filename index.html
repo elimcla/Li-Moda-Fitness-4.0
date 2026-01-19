@@ -7,21 +7,8 @@
     <title>Li Moda Fitness 3.0 | Premium Sportswear</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- GitHub Pages SPA Hack -->
-    <script type="text/javascript">
-      (function(l) {
-        if (l.search[1] === '/' ) {
-          var decoded = l.search.slice(1).split('&').map(function(s) { 
-            return s.replace(/~and~/g, '&')
-          }).join('?');
-          window.history.replaceState(null, null,
-              l.pathname.slice(0, -1) + decoded + l.hash
-          );
-        }
-      }(window.location));
-    </script>
-
+    <!-- PagBank SDK for Card Encryption -->
+    <script src="https://assets.pagseguro.com.br/checkout-sdk-js/rc/dist/browser/pagseguro.min.js"></script>
     <style>
         :root {
             --dark-bg: #050505;
@@ -34,6 +21,7 @@
             background-color: var(--dark-bg);
             color: white;
             overflow-x: hidden;
+            /* Prevent text size adjustment on orientation change */
             -webkit-text-size-adjust: 100%;
             touch-action: manipulation;
         }
@@ -44,6 +32,13 @@
             background: rgba(17, 17, 17, 0.7);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-border {
+            border: 1px solid var(--neon);
+            box-shadow: 0 0 10px rgba(204, 255, 0, 0.3);
+        }
+        .gold-glow {
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
         .marquee {
             white-space: nowrap;
@@ -65,9 +60,20 @@
         ::-webkit-scrollbar {
             width: 6px;
         }
-        ::-webkit-scrollbar-track { background: #050505; }
-        ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #CCFF00; }
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #222;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #CCFF00;
+        }
+        /* Extra mobile stability: stop scrolling when modals are open if needed via JS classes */
+        .no-scroll {
+            overflow: hidden;
+        }
     </style>
 <script type="importmap">
 {

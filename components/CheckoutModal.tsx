@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, User, Product } from '../types';
 import { db } from '../firebaseConfig';
-import { doc, getDoc, setDoc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion, serverTimestamp, increment } from 'firebase/firestore';
 
 interface CheckoutModalProps {
   items: CartItem[];
@@ -55,7 +55,10 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
               number: data.number || ''
             }));
             if (data.cep) fetchCep(data.cep.replace(/\D/g, ''));
-            if (data.activeCoupon) setAppliedCoupon(data.activeCoupon);
+            // Pré-carrega o cupom ativo se houver
+            if (data.activeCoupon) {
+              setAppliedCoupon(data.activeCoupon);
+            }
           }
         } catch (e) { console.error(e); }
       }
@@ -100,7 +103,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
       setAppliedCoupon(userData.activeCoupon);
       alert("Cupom aplicado com sucesso!");
     } else {
-      alert("Cupom inválido.");
+      alert("Cupom inválido ou não encontrado para sua conta.");
     }
   };
 
@@ -114,14 +117,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
     try {
       const orderId = `ORDER-${Date.now()}`;
       
-      // Baixa de estoque no Firebase
       for (const item of items) {
         const productRef = doc(db, 'products', item.id);
         const productSnap = await getDoc(productRef);
+        
         if (productSnap.exists()) {
-          const productData = productSnap.data();
-          const legacyColors = productData.colors || [];
+          const productData = productSnap.data() as Product;
+          const legacyColors = (productData as any).colors || [];
           const selectedColor = (item as any).selectedColor;
+
           const updatedLegacyColors = legacyColors.map((c: string) => {
             if (c.startsWith(selectedColor)) {
               const match = c.match(/\((\d+)\)/);
@@ -131,6 +135,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
             }
             return c;
           });
+
           await updateDoc(productRef, {
             colors: updatedLegacyColors,
             stockQuantity: increment(-item.quantity),
@@ -141,13 +146,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
 
       const orderData = {
         orderId,
-        items: items.map(i => ({ 
-          name: i.name, 
-          color: (i as any).selectedColor, 
-          size: i.selectedSize, 
-          quantity: i.quantity, 
-          price: i.promoPrice || i.price 
-        })),
+        items: items.map(i => ({ id: i.id, name: i.name, color: (i as any).selectedColor, size: i.selectedSize, quantity: i.quantity, price: i.promoPrice || i.price })),
         total: finalTotal,
         discount: discountValue,
         shipping: shippingValue,
@@ -156,19 +155,13 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
       };
 
       await setDoc(doc(db, 'orders', orderId), { ...orderData, customerId: user.id, customerName: form.name });
+      
+      // CRITICAL: Update customer AND invalidate the coupon
       await updateDoc(doc(db, 'customers', user.id), { 
         orders: arrayUnion(orderData),
         totalSpent: increment(orderData.total),
-        activeCoupon: null 
+        activeCoupon: null // O cupom é zerado após o uso
       });
-
-      // INTEGRAÇÃO WHATSAPP (Substitui o backend do Netlify no GitHub Pages)
-      const itemsList = items.map(i => `• ${i.name} [${(i as any).selectedColor || 'N/A'}] (Tam: ${i.selectedSize}) x${i.quantity}`).join('%0A');
-      const addressString = deliveryMethod === 'delivery' ? `%0A*Endereço:* ${form.address}, ${form.number}` : '%0A*Retirada na Loja*';
-      
-      const whatsappMessage = `*NOVO PEDIDO - LI MODA FITNESS*%0A%0A*Cliente:* ${form.name}%0A*CPF:* ${form.cpf}%0A*WhatsApp:* ${form.phone}%0A%0A*ITENS:*%0A${itemsList}${addressString}%0A%0A*Subtotal:* R$ ${subtotal.toFixed(2)}%0A*Desconto:* R$ ${discountValue.toFixed(2)}%0A*Frete:* R$ ${shippingValue.toFixed(2)}%0A*TOTAL:* R$ ${finalTotal.toFixed(2)}%0A%0A*Pagamento:* ${paymentMethod.toUpperCase()}%0A%0A_Aguardando confirmação de pagamento para liberar o envio._`;
-      
-      window.open(`https://wa.me/5586998091058?text=${whatsappMessage}`, '_blank');
 
       onSuccess();
     } catch (e) {
@@ -215,17 +208,27 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
                 <button onClick={() => setPaymentMethod('card')} className={`flex-1 p-6 rounded-2xl border transition-all ${paymentMethod === 'card' ? 'border-[#CCFF00] bg-[#CCFF00]/10' : 'border-white/10 text-white/40'}`}>CARTÃO</button>
               </div>
 
+              {/* Área de Cupom */}
               {!appliedCoupon && userData?.activeCoupon && (
                 <div className="flex gap-2">
-                  <input type="text" placeholder="CUPOM?" className="flex-grow bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-black uppercase" value={couponInput} onChange={e => setCouponInput(e.target.value)} />
+                  <input 
+                    type="text" 
+                    placeholder="TEM UM CUPOM?" 
+                    className="flex-grow bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-black uppercase tracking-widest outline-none focus:border-[#CCFF00]"
+                    value={couponInput}
+                    onChange={e => setCouponInput(e.target.value)}
+                  />
                   <button onClick={applyManualCoupon} className="bg-white/10 px-6 rounded-xl text-[10px] font-black uppercase">APLICAR</button>
                 </div>
               )}
 
               {appliedCoupon && (
-                <div className="bg-[#CCFF00]/10 border border-[#CCFF00]/30 p-4 rounded-xl flex justify-between items-center text-[10px] font-black text-[#CCFF00] uppercase">
-                  <span>Cupom: {appliedCoupon.code}</span>
-                  <button onClick={() => setAppliedCoupon(null)} className="text-red-500">REMOVER</button>
+                <div className="bg-[#CCFF00]/10 border border-[#CCFF00]/30 p-4 rounded-xl flex justify-between items-center">
+                  <div>
+                    <p className="text-[10px] font-black text-[#CCFF00] uppercase">Cupom Aplicado: {appliedCoupon.code}</p>
+                    <p className="text-[8px] text-white/40">{appliedCoupon.message}</p>
+                  </div>
+                  <button onClick={() => setAppliedCoupon(null)} className="text-red-500 font-black text-[8px] uppercase">REMOVER</button>
                 </div>
               )}
 
@@ -238,14 +241,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ items, user, onClose, onS
                 </div>
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" className="hidden peer" checked={acceptTerms} onChange={() => setAcceptTerms(!acceptTerms)} />
                 <div className="w-5 h-5 border-2 border-white/20 rounded peer-checked:bg-[#CCFF00] peer-checked:border-[#CCFF00]" />
-                <span className="text-[10px] text-white/60 font-bold uppercase">Aceito termos de troca</span>
+                <span className="text-[10px] text-white/60 font-bold uppercase">Aceito os termos de garantia e troca</span>
               </label>
               
-              <button onClick={saveOrderToDatabase} disabled={loading || !acceptTerms} className="w-full bg-[#CCFF00] text-black py-5 rounded-xl font-black uppercase tracking-widest">
-                {loading ? 'PROCESSANDO...' : 'FINALIZAR NO WHATSAPP'}
+              <button onClick={saveOrderToDatabase} disabled={loading || !acceptTerms} className="w-full bg-[#CCFF00] text-black py-5 rounded-xl font-black uppercase tracking-widest shadow-xl shadow-[#CCFF00]/20 active:scale-95 transition-all">
+                {loading ? 'PROCESSANDO...' : 'FINALIZAR PEDIDO'}
               </button>
           </div>
         )}
