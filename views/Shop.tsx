@@ -5,7 +5,7 @@ import AdminProductModal from '../components/AdminProductModal';
 
 interface ShopProps {
   products: Product[];
-  onAddToCart: (product: Product, size: string) => void;
+  onAddToCart: (product: Product, size: string, color?: string) => void;
   isAdmin: boolean;
   onDeleteProduct: (id: string) => void;
   user: User | null;
@@ -69,7 +69,11 @@ const ProductCard: React.FC<{
 }> = ({ product, user, onAddToCart, isAdmin, onDelete, onEdit, onNavigate }) => {
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<string>('');
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [addedFeedback, setAddedFeedback] = useState(false);
+  
   const allImages = [product.image, ...(product.images || [])];
+  const colors = (product as any).colors || [];
   
   const isPromoActive = product.promoPrice && product.promoUntil && new Date(product.promoUntil) > new Date();
   const displayPrice = isPromoActive ? product.promoPrice : product.price;
@@ -90,13 +94,22 @@ const ProductCard: React.FC<{
     }
     if (isOutOfStock) return;
 
-    if (product.isUniqueSize) {
-      onAddToCart(product, 'ÚNICO');
-    } else if (selectedSize) {
-      onAddToCart(product, selectedSize);
-    } else {
-      alert("Por favor, selecione um tamanho.");
+    // Validações
+    if (!product.isUniqueSize && !selectedSize) {
+      alert("Por favor, selecione o TAMANHO.");
+      return;
     }
+    if (colors.length > 0 && !selectedColor) {
+      alert("Por favor, selecione a COR desejada.");
+      return;
+    }
+
+    const finalSize = product.isUniqueSize ? 'ÚNICO' : selectedSize;
+    onAddToCart(product, finalSize, selectedColor);
+    
+    // Feedback visual
+    setAddedFeedback(true);
+    setTimeout(() => setAddedFeedback(false), 3000);
   };
 
   return (
@@ -157,45 +170,79 @@ const ProductCard: React.FC<{
       </div>
 
       <div className="p-6 space-y-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-sora font-black text-base uppercase leading-tight tracking-tighter truncate max-w-[200px]">{product.name}</h3>
-            <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] mt-0.5">{product.category}</p>
-          </div>
+        <div>
+          <h3 className="font-sora font-black text-base uppercase leading-tight tracking-tighter truncate">{product.name}</h3>
+          <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] mt-0.5">{product.category}</p>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
+          {/* Seleção de Cores */}
+          {colors.length > 0 && user && !isOutOfStock && (
+            <div className="space-y-2">
+              <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Escolha a Cor:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {colors.map((color: string) => (
+                  <button 
+                    key={color} 
+                    onClick={(e) => { e.stopPropagation(); setSelectedColor(color); }}
+                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black transition-all uppercase ${selectedColor === color ? 'bg-white text-black border-white shadow-lg' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}
+                  >
+                    {color}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Seleção de Tamanhos */}
           {!product.isUniqueSize && user && !isOutOfStock && (
-            <div className="flex gap-1.5">
-              {product.sizes.map(size => (
-                <button 
-                  key={size} 
-                  onClick={(e) => { e.stopPropagation(); setSelectedSize(size); }}
-                  className={`flex-1 py-1.5 rounded-lg border text-[9px] font-black transition-all ${selectedSize === size ? 'bg-[#CCFF00] border-[#CCFF00] text-black shadow-lg shadow-[#CCFF00]/10' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'}`}
-                >
-                  {size}
-                </button>
-              ))}
+            <div className="space-y-2">
+              <p className="text-[8px] font-black text-white/40 uppercase tracking-widest">Escolha o Tamanho:</p>
+              <div className="flex gap-1.5">
+                {product.sizes.map(size => (
+                  <button 
+                    key={size} 
+                    onClick={(e) => { e.stopPropagation(); setSelectedSize(size); }}
+                    className={`flex-1 py-2 rounded-lg border text-[9px] font-black transition-all ${selectedSize === size ? 'bg-[#CCFF00] border-[#CCFF00] text-black shadow-lg shadow-[#CCFF00]/10' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/30'}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
           <button 
             onClick={handleBuy}
-            disabled={isOutOfStock}
-            className={`w-full py-3.5 rounded-xl font-black text-[9px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${
-              isOutOfStock 
-              ? 'bg-white/5 text-white/20 border border-white/5 cursor-not-allowed'
-              : user 
-                ? 'bg-[#CCFF00] text-black hover:scale-[1.01] shadow-xl shadow-[#CCFF00]/10' 
-                : 'border border-[#CCFF00] text-[#CCFF00] hover:bg-[#CCFF00] hover:text-black'
+            disabled={isOutOfStock || addedFeedback}
+            className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex flex-col items-center justify-center gap-1 overflow-hidden relative ${
+              addedFeedback 
+              ? 'bg-green-500 text-white' 
+              : isOutOfStock 
+                ? 'bg-white/5 text-white/20 border border-white/5 cursor-not-allowed'
+                : user 
+                  ? 'bg-[#CCFF00] text-black hover:scale-[1.01] shadow-xl shadow-[#CCFF00]/10' 
+                  : 'border border-[#CCFF00] text-[#CCFF00] hover:bg-[#CCFF00] hover:text-black'
             }`}
           >
-            {isOutOfStock ? (
+            {addedFeedback ? (
+              <div className="animate-fade-in flex flex-col items-center">
+                <span className="text-[8px] opacity-70">ADICIONADO COM SUCESSO</span>
+                <span className="text-[10px]">{selectedColor} - {product.isUniqueSize ? 'ÚNICO' : selectedSize}</span>
+              </div>
+            ) : isOutOfStock ? (
               'ITEM ESGOTADO'
             ) : user ? (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-                {product.isUniqueSize ? 'Adicionar' : (selectedSize ? `Comprar ${selectedSize}` : 'Selecionar Tamanho')}
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                  <span>ADICIONAR AO CARRINHO</span>
+                </div>
+                {(selectedSize || selectedColor) && (
+                  <span className="text-[7px] opacity-50 font-bold">
+                    {selectedColor || 'COR?'} | {product.isUniqueSize ? 'TAM. ÚNICO' : (selectedSize || 'TAMANHO?')}
+                  </span>
+                )}
               </>
             ) : (
               'REVELAR PREÇO'
@@ -241,46 +288,70 @@ const Shop: React.FC<ShopProps> = ({ products, onAddToCart, isAdmin, onDeletePro
     : products.filter(p => p.category === filter);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-16 fade-in">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12 mb-20">
-        <div className="space-y-4">
-          <div className="flex items-center gap-6">
-            <h1 className="text-6xl md:text-8xl font-sora font-black uppercase tracking-tighter leading-[0.85]">
-              DROP <span className="text-[#CCFF00]">PERFORMANCE</span>
+    <div className="max-w-7xl mx-auto px-6 py-10 fade-in">
+      {/* HERO BANNER */}
+      <div className="relative w-full h-[320px] md:h-[400px] rounded-[2.5rem] overflow-hidden mb-12 shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-white/10 group">
+        <img 
+          src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=2075&auto=format&fit=crop" 
+          alt="Li Moda Fitness Showroom Premium" 
+          className="absolute inset-0 w-full h-full object-cover opacity-80 transition-transform duration-[10s] group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 md:p-8">
+          <div className="mb-4 bg-[#CCFF00] text-black px-6 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.4em] shadow-[0_5px_15px_rgba(204,255,0,0.3)]">
+            A MAIOR CENTRAL DE ATACADO
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-4xl md:text-7xl font-sora font-black uppercase tracking-tighter leading-none text-white drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)]">
+              LI MODA <span className="text-[#CCFF00]">FITNESS</span>
             </h1>
+            <div className="h-1 w-24 bg-[#CCFF00] mx-auto rounded-full" />
+          </div>
+          <p className="mt-4 text-white/90 text-[11px] md:text-lg max-w-2xl font-bold leading-relaxed drop-shadow-lg px-4">
+            Showroom exclusivo de alta performance. <span className="text-[#CCFF00]">Tecnologia têxtil</span> para o topo.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-16">
+        <div className="space-y-3">
+          <div className="flex items-center gap-6">
+            <h2 className="text-3xl md:text-5xl font-sora font-black uppercase tracking-tighter leading-[0.85]">
+              COLEÇÕES <span className="text-[#CCFF00]">FITNESS</span>
+            </h2>
             {isAdmin && (
               <button 
                 onClick={() => setIsAddModalOpen(true)}
-                className="bg-[#CCFF00] text-black w-14 h-14 md:w-20 md:h-20 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-90 transition-all duration-500 shadow-[0_0_30px_rgba(204,255,0,0.4)]"
+                className="bg-[#CCFF00] text-black w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-90 transition-all duration-500 shadow-[0_0_20px_rgba(204,255,0,0.4)]"
               >
-                <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M12 4v16m8-8H4" /></svg>
+                <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M12 4v16m8-8H4" /></svg>
               </button>
             )}
           </div>
-          <p className="text-white/20 text-[11px] font-black tracking-[0.5em] uppercase">Teresina-PI • Curadoria High Performance • Li Moda Fitness</p>
+          <p className="text-white/20 text-[9px] font-black tracking-[0.4em] uppercase">Teresina-PI • Curadoria Atacadista • Li Moda Fitness</p>
         </div>
         
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2.5">
           {Object.values(Category).map(cat => (
             <button
               key={cat}
               onClick={() => setFilter(cat)}
-              className={`px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border-2 ${
+              className={`px-5 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] transition-all border-2 ${
                 filter === cat 
-                ? 'bg-[#CCFF00] text-black border-[#CCFF00] shadow-[0_10px_30px_rgba(204,255,0,0.2)]' 
+                ? 'bg-[#CCFF00] text-black border-[#CCFF00] shadow-[0_5px_15px_rgba(204,255,0,0.2)]' 
                 : 'bg-white/5 border-white/5 text-white/30 hover:text-white hover:border-white/20'
               }`}
             >
-              {cat}
+              {cat === Category.ALL ? 'TODOS' : cat.toUpperCase()}
             </button>
           ))}
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="py-40 text-center space-y-4">
-          <div className="text-white/5 font-black text-9xl uppercase tracking-tighter select-none">Vazio</div>
-          <p className="text-white/20 font-bold uppercase tracking-[0.3em]">Nenhum item encontrado no Drop</p>
+        <div className="py-24 text-center space-y-4">
+          <div className="text-white/5 font-black text-8xl uppercase tracking-tighter select-none">VAZIO</div>
+          <p className="text-white/20 font-bold uppercase tracking-[0.3em] text-[10px]">Nenhum item encontrado nesta categoria</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12">

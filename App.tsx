@@ -50,20 +50,34 @@ const App: React.FC = () => {
     await updateDoc(doc(db, 'settings', 'global'), { maintenanceMode: newStatus });
   };
 
-  const addToCart = (product: Product, size: string) => {
+  const addToCart = (product: Product, size: string, color?: string) => {
     if (!user) {
       setCurrentView('login');
       return;
     }
-    const existingIndex = cart.findIndex(item => item.id === product.id && item.selectedSize === size);
+    
+    // Identificador único considerando tamanho e cor
+    const existingIndex = cart.findIndex(item => 
+      item.id === product.id && 
+      item.selectedSize === size && 
+      (item as any).selectedColor === color
+    );
+
     if (existingIndex !== -1) {
-      const confirmAdd = window.confirm(`Você já tem este item (${size}) no carrinho. Deseja adicionar mais uma unidade?`);
-      if (!confirmAdd) return;
-      setCart(prev => prev.map((item, idx) => idx === existingIndex ? { ...item, quantity: item.quantity + 1 } : item));
+      setCart(prev => prev.map((item, idx) => 
+        idx === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
+      ));
     } else {
-      setCart(prev => [...prev, { ...product, selectedSize: size, quantity: 1 }]);
+      setCart(prev => [...prev, { 
+        ...product, 
+        selectedSize: size, 
+        selectedColor: color, // Extensão dinâmica do tipo CartItem
+        quantity: 1 
+      } as any]);
     }
-    setIsCartOpen(true);
+    
+    // Pequeno atraso para o feedback visual no card acontecer antes de abrir o drawer
+    setTimeout(() => setIsCartOpen(true), 800);
   };
 
   const handleLogout = () => {
@@ -99,7 +113,7 @@ const App: React.FC = () => {
             EM <span className="text-[#CCFF00]">MANUTENÇÃO</span>
           </h1>
           <p className="text-white/60 text-lg font-medium leading-relaxed">
-            Estamos preparando um novo drop de alta performance. Em breve retornaremos com <span className="text-white font-bold">promoções exclusivas</span> e novidades que vão elevar seu treino ao próximo nível.
+            Estamos preparando um novo lançamento de alta performance. Em breve retornaremos com <span className="text-white font-bold">promoções exclusivas</span> e novidades que vão elevar seu treino ao próximo nível.
           </p>
           <div className="flex flex-col md:flex-row gap-4 justify-center pt-6">
             <a 
@@ -173,8 +187,8 @@ const App: React.FC = () => {
 
       <div className="bg-[#CCFF00] text-black py-2 font-black uppercase tracking-widest overflow-hidden border-t border-black text-[10px]">
         <div className="marquee flex gap-12">
-          <span>Li Moda Fitness 3.0 • Premium High Dopamine • Performance Superior • Teresina-PI • </span>
-          <span>Li Moda Fitness 3.0 • Premium High Dopamine • Performance Superior • Teresina-PI • </span>
+          <span>Li Moda Fitness 3.0 • Premium Alta Dopamina • Performance Superior • Teresina-PI • </span>
+          <span>Li Moda Fitness 3.0 • Premium Alta Dopamina • Performance Superior • Teresina-PI • </span>
         </div>
       </div>
     </div>
