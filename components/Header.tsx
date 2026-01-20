@@ -5,7 +5,7 @@ import { db } from '../firebaseConfig';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 interface HeaderProps {
-  onNavigate: (view: 'home' | 'shop' | 'login' | 'about' | 'admin_customers') => void;
+  onNavigate: (view: 'home' | 'shop' | 'login' | 'about' | 'admin_customers' | 'admin_products') => void;
   onOpenCart: () => void;
   onLogout: () => void;
   user: User | null;
@@ -98,13 +98,18 @@ const Header: React.FC<HeaderProps> = ({
         <span className="text-sm md:text-xl font-sora font-bold uppercase tracking-tighter">Moda Fitness</span>
       </div>
 
-      <nav className="hidden lg:flex gap-8 items-center text-sm font-medium tracking-wide">
+      <nav className="hidden lg:flex gap-4 items-center text-sm font-medium tracking-wide">
         <button onClick={() => onNavigate('home')} className="hover:text-[#CCFF00] transition-colors font-bold uppercase tracking-widest text-[10px]">INÍCIO</button>
         <button onClick={() => onNavigate('shop')} className="hover:text-[#CCFF00] transition-colors font-bold uppercase tracking-widest text-[10px]">COLEÇÕES</button>
         {user?.isAdmin && (
-          <button onClick={() => onNavigate('admin_customers')} className="text-[#CCFF00] hover:text-white transition-colors font-black uppercase tracking-widest text-[10px] flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-[#CCFF00]/20">
-            GESTÃO DE CLIENTES
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => onNavigate('admin_customers')} className="text-white/60 hover:text-[#CCFF00] transition-colors font-black uppercase tracking-widest text-[9px] flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+              GESTÃO DE CLIENTES
+            </button>
+            <button onClick={() => onNavigate('admin_products')} className="text-[#CCFF00] hover:text-white transition-colors font-black uppercase tracking-widest text-[9px] flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-[#CCFF00]/20">
+              PERFORMANCE EDITOR
+            </button>
+          </div>
         )}
       </nav>
 
@@ -166,7 +171,7 @@ const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* MODAL DE BOAS-VINDAS / HISTÓRICO DE MENSAGENS */}
+      {/* MODAL DE BOAS-VINDAS */}
       {showWelcomeModal && user && (
         <div className="fixed inset-0 z-[150] flex flex-col items-center p-6 bg-black/40 backdrop-blur-sm pt-28 md:pt-32">
           <div className="absolute inset-0" onClick={() => setShowWelcomeModal(false)} />
@@ -186,7 +191,6 @@ const Header: React.FC<HeaderProps> = ({
             >
               VOLTAR PARA A LOJA
             </button>
-            <p className="text-[8px] text-white/20 uppercase font-black tracking-widest">Histórico de Boas-vindas Liboda</p>
           </div>
         </div>
       )}
@@ -200,15 +204,13 @@ const Header: React.FC<HeaderProps> = ({
             <div className="space-y-2">
               <h2 className="text-2xl font-sora font-black text-[#CCFF00] uppercase tracking-tighter">PRESENTE LIBODA!</h2>
               <p className="text-white/60 text-sm leading-relaxed">{userData.activeCoupon.message}</p>
-              <p className="text-[10px] text-[#FFD700] font-black uppercase">Válido por 20 dias em itens selecionados</p>
             </div>
             
-            <div className="relative bg-black/40 border-2 border-dashed border-[#CCFF00]/30 p-6 rounded-2xl group cursor-pointer active:scale-95 transition-all overflow-hidden" onClick={copyToClipboard}>
-              <p className="text-[10px] text-white/20 uppercase font-black mb-1 tracking-widest">{copied ? 'CÓDIGO COPIADO!' : 'Toque para copiar o código'}</p>
+            <div className="relative bg-black/40 border-2 border-dashed border-[#CCFF00]/30 p-6 rounded-2xl group cursor-pointer active:scale-95 transition-all" onClick={copyToClipboard}>
+              <p className="text-[10px] text-white/20 uppercase font-black mb-1 tracking-widest">{copied ? 'CÓDIGO COPIADO!' : 'Toque para copiar'}</p>
               <p className="text-4xl font-mono font-black text-[#CCFF00] tracking-widest uppercase">{userData.activeCoupon.code}</p>
-              {copied && <div className="absolute inset-0 bg-[#CCFF00] flex items-center justify-center"><span className="text-black font-black text-xs uppercase">Copiado!</span></div>}
             </div>
-            <button onClick={() => setShowCouponModal(false)} className="w-full py-4 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 transition-all">FECHAR</button>
+            <button onClick={() => setShowCouponModal(false)} className="w-full py-4 bg-white/5 rounded-xl text-[10px] font-black uppercase text-white/40">FECHAR</button>
           </div>
         </div>
       )}
